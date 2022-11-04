@@ -10,7 +10,6 @@
 #include <unistd.h> /* _exit */
 #endif
 #include <inttypes.h>
-
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -222,15 +221,28 @@ static void emit_header_start(lcmgen_t *lcmgen, FILE *f, lcm_struct_t *ls)
         fprintf(f, "#include <lcm/lcm_coretypes.h>\n");
     fprintf(f, "\n");
 
-    // do we need to #include <vector> and/or <string>?
+    // do we need to #include <vector>, RealTimeVector, and/or <string>?
     int emit_include_vector = 0;
+    int emit_include_real_time_vector = 0;
     int emit_include_string = 0;
     for (unsigned int mind = 0; mind < g_ptr_array_size(ls->members); mind++) {
         lcm_member_t *lm = (lcm_member_t *) g_ptr_array_index(ls->members, mind);
-        if (g_ptr_array_size(lm->dimensions) != 0 && !lcm_is_constant_size_array(lm) &&
-            !emit_include_vector) {
-            emit(0, "#include <vector>");
-            emit_include_vector = 1;
+
+        if (g_ptr_array_size(lm->dimensions) != 0 && !lcm_is_constant_size_array(lm)) {
+            for (unsigned int dind = 0; dind < g_ptr_array_size(lm->dimensions); dind++) {
+                lcm_dimension_t *ld = (lcm_dimension_t *) g_ptr_array_index(lm->dimensions, dind);
+                if (ld->max_size == NULL || ld->max_size[0] == '\0') {
+                    if (!emit_include_vector) {
+                        emit(0, "#include <vector>");
+                        emit_include_vector = 1;
+                    }
+                } else {
+                    if (!emit_include_real_time_vector) {
+                        emit(0, "#include \"DR/common/real_time_vector.h\"");
+                        emit_include_real_time_vector = 1;
+                    }
+                }
+            }
         }
         if (!emit_include_string && !strcmp(lm->type->lctypename, "string")) {
             emit(0, "#include <string>");
@@ -284,11 +296,24 @@ static void emit_header_start(lcmgen_t *lcmgen, FILE *f, lcm_struct_t *ls)
                     emit_end(";");
                 } else {
                     emit_start(2, "");
-                    for (unsigned int d = 0; d < ndim; d++)
-                        emit_continue("std::vector< ");
+                    for (unsigned int d = 0; d < ndim; d++) {
+                        lcm_dimension_t *ld =
+                            (lcm_dimension_t *) g_ptr_array_index(lm->dimensions, d);
+                        if (ld->max_size == NULL || ld->max_size[0] == '\0')
+                            emit_continue("std::vector< ");
+                        else
+                            emit_continue("RealTimeVector<");
+                    }
                     emit_continue("%s", mapped_typename);
-                    for (unsigned int d = 0; d < ndim; d++)
-                        emit_continue(" >");
+                    for (unsigned int d = 0; d < ndim; d++) {
+                        lcm_dimension_t *ld =
+                            (lcm_dimension_t *) g_ptr_array_index(lm->dimensions, d);
+                        if (ld->max_size == NULL || ld->max_size[0] == '\0')
+                            emit_continue(" >");
+                        else
+                            emit_continue(", %s>", ld->max_size);
+                    }
+
                     emit_end(" %s;", lm->membername);
                 }
             }

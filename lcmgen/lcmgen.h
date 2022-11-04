@@ -36,7 +36,8 @@ typedef struct lcm_dimension lcm_dimension_t;
 
 struct lcm_dimension {
     lcm_dimension_mode_t mode;
-    char *size;  // a string containing either a member variable name or a constant
+    char *size;      // a string containing either a member variable name or a constant
+    char *max_size;  // the (optional) maximum size of a variable size array.
 };
 
 /////////////////////////////////////////////////

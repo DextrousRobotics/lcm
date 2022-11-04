@@ -6,7 +6,6 @@
 #endif
 #include <ctype.h>
 #include <inttypes.h>
-
 #include <sys/stat.h>
 #include <sys/types.h>
 #ifndef WIN32
@@ -613,6 +612,22 @@ int parse_member(lcmgen_t *lcmgen, lcm_struct_t *lr, tokenize_t *t)
 
                     dim->mode = LCM_VAR;
                     dim->size = strdup(t->token);
+
+                    // Check whether fixed maximum size has been defined.
+                    if (parse_try_consume(t, ",")) {
+                        tokenize_next(t);
+                        if (isdigit(t->token[0])) {
+                            int sz = strtol(t->token, NULL, 0);
+                            if (sz <= 0)
+                                semantic_error(t, "Maximum non-constant array size must be > 0");
+                            else
+                                dim->max_size = strdup(t->token);
+
+                        } else {
+                            semantic_error(
+                                t, "Maximum non-constant array size must be an integer type.");
+                        }
+                    }
                 }
             }
             parse_require(t, "]");

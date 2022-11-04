@@ -1,0 +1,6 @@
+package exlcm;
+
+struct real_time_vector_t {
+    int8_t dim;
+    int8_t arr[dim, 10]; // For C++ this generates a RealTimeVector with maximum capacity of 10.
+}
